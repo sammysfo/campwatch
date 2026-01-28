@@ -3,7 +3,6 @@ import os
 import socket
 import ssl
 import smtplib
-from dataclasses import dataclass
 from datetime import date, timedelta, datetime
 from email.message import EmailMessage
 
@@ -17,7 +16,7 @@ HEADERS = {
     "origin": "https://reservecalifornia.com",
     "referer": "https://reservecalifornia.com/",
     "tenantid": "cali",
-    # "user-agent": "campwatch/1.0",
+    "user-agent": "campwatch/1.0",
 }
 
 LOG_PATH = "/tmp/campwatch.run.log"
@@ -25,15 +24,6 @@ LOG_PATH = "/tmp/campwatch.run.log"
 def log_line(msg: str) -> None:
     with open(LOG_PATH, "a") as f:
         f.write(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} {msg}\n")
-
-@dataclass
-class EmailCfg:
-    smtp_host: str
-    smtp_port: int
-    smtp_user: str
-    smtp_pass: str
-    email_from: str
-    email_to: str
 
 def have_internet(timeout_sec: float = 3.0) -> bool:
     try:
@@ -58,7 +48,6 @@ def parse_place(data: dict, place_id: int) -> tuple[bool, str]:
     facilities = selected.get("Facilities") or {}
 
     hits = []
-    totals = 0
 
     for fac in facilities.values():
         fac_name = fac.get("Name", "Unknown facility")
@@ -67,7 +56,6 @@ def parse_place(data: dict, place_id: int) -> tuple[bool, str]:
         for ut in unit_types.values():
             ut_name = ut.get("Name", "Unknown unit type")
             count = int(ut.get("AvailableCount") or 0)
-            totals += count
             if count > 0:
                 hits.append(
                     f"{fac_name} | {ut_name} | AvailableCount={count}"
@@ -88,34 +76,28 @@ def parse_place(data: dict, place_id: int) -> tuple[bool, str]:
         f"NightsRequested={data.get('NightsRequested')}"
     )
 
-def send_email(cfg: EmailCfg, subject: str, body: str) -> None:
+def send_email(cfg: dict, subject: str, body: str) -> None:
     msg = EmailMessage()
-    msg["From"] = cfg.email_from
-    msg["To"] = cfg.email_to
+    msg["From"] = cfg["email_from"]
+    msg["To"] = cfg["email_to"]
     msg["Subject"] = subject
     msg.set_content(body)
 
     context = ssl.create_default_context()
-    with smtplib.SMTP(cfg.smtp_host, cfg.smtp_port) as server:
+    with smtplib.SMTP(cfg["smtp_host"], cfg["smtp_port"]) as server:
         server.starttls(context=context)
-        server.login(cfg.smtp_user, cfg.smtp_pass)
+        server.login(cfg["smtp_user"], cfg["smtp_pass"])
         server.send_message(msg)
 
-def load_email_cfg() -> EmailCfg:
-    smtp_host = os.environ["CW_SMTP_HOST"]
-    smtp_port = int(os.getenv("CW_SMTP_PORT", "587"))
-    smtp_user = os.environ["CW_SMTP_USER"]
-    smtp_pass = os.environ["CW_SMTP_PASS"]
-    email_to = os.environ["CW_EMAIL_TO"]
-    email_from = os.environ.get("CW_EMAIL_FROM", smtp_user)
-    return EmailCfg(
-        smtp_host=smtp_host,
-        smtp_port=smtp_port,
-        smtp_user=smtp_user,
-        smtp_pass=smtp_pass,
-        email_from=email_from,
-        email_to=email_to,
-    )
+def load_email_cfg() -> dict:
+    return {
+        "smtp_host": os.environ["CW_SMTP_HOST"],
+        "smtp_port": int(os.getenv("CW_SMTP_PORT", "587")),
+        "smtp_user": os.environ["CW_SMTP_USER"],
+        "smtp_pass": os.environ["CW_SMTP_PASS"],
+        "email_to": os.environ["CW_EMAIL_TO"],
+        "email_from": os.environ.get("CW_EMAIL_FROM", os.environ["CW_SMTP_USER"]),
+    }
 
 def pick_start_date() -> tuple[str, str]:
     fixed = os.getenv("CW_START_DATE", "").strip()
