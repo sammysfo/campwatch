@@ -17,7 +17,7 @@ HEADERS = {
     "origin": "https://reservecalifornia.com",
     "referer": "https://reservecalifornia.com/",
     "tenantid": "cali",
-    "user-agent": "campwatch/1.0",
+    # "user-agent": "campwatch/1.0",
 }
 
 LOG_PATH = "/tmp/campwatch.run.log"
