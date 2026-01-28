@@ -17,8 +17,14 @@ HEADERS = {
     "origin": "https://reservecalifornia.com",
     "referer": "https://reservecalifornia.com/",
     "tenantid": "cali",
-    # "user-agent": "campwatch/1.0",
+    "user-agent": "campwatch/1.0",
 }
+
+LOG_PATH = "/tmp/campwatch.run.log"
+
+def log_line(msg: str) -> None:
+    with open(LOG_PATH, "a") as f:
+        f.write(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} {msg}\n")
 
 @dataclass
 class EmailCfg:
@@ -73,7 +79,6 @@ def parse_place(data: dict, place_id: int) -> tuple[bool, str]:
             + "\n".join(hits)
         )
 
-    # Preserve your original diagnostic context
     avail_places = data.get("AvailablePlaces")
     return False, (
         f"{place_name}: no availability found (all AvailableCount = 0)\n"
@@ -113,12 +118,6 @@ def load_email_cfg() -> EmailCfg:
     )
 
 def pick_start_date() -> tuple[str, str]:
-    """
-    Returns (start_date_iso, description).
-    Two modes:
-      - Fixed: set CW_START_DATE=YYYY-MM-DD
-      - Rolling: CW_START_IN_DAYS (default 30)
-    """
     fixed = os.getenv("CW_START_DATE", "").strip()
     if fixed:
         return fixed, f"fixed start date {fixed}"
@@ -129,50 +128,45 @@ def pick_start_date() -> tuple[str, str]:
 
 def main() -> None:
     if not have_internet():
+        log_line("no internet, skipping")
         return
 
     email_cfg = load_email_cfg()
 
-    nights = int(os.getenv("CW_NIGHTS", "1")) # default to one night
+    nights = int(os.getenv("CW_NIGHTS", "1"))
     start_date_iso, date_mode_desc = pick_start_date()
     place_id = int(os.getenv("CW_PLACE_ID", "681"))
 
     payload = build_payload(place_id, start_date_iso, nights)
 
     t0 = datetime.now().isoformat(timespec="seconds")
+
     try:
         r = requests.post(ENDPOINT, headers=HEADERS, json=payload, timeout=60)
         r.raise_for_status()
         data = r.json()
     except Exception as e:
-        subject = f"CampWatch ERROR PlaceId {place_id} {start_date_iso} nights={nights}"
+        log_line(f"ERROR PlaceId={place_id} StartDate={start_date_iso} nights={nights} err={repr(e)}")
+        return
+
+    place_name = (data.get("SelectedPlace") or {}).get("Name") or f"PlaceId {place_id}"
+    available, summary = parse_place(data, place_id)
+
+    if available:
+        subject = f"CampWatch OPEN {place_name} {start_date_iso} nights={nights}"
         body = (
             f"Time: {t0}\n"
             f"Date mode: {date_mode_desc}\n"
             f"Endpoint: {ENDPOINT}\n"
             f"PlaceId: {place_id}\n"
             f"StartDate: {start_date_iso}\n"
-            f"Nights: {nights}\n"
-            f"Error: {repr(e)}\n"
+            f"Nights: {nights}\n\n"
+            f"{summary}\n"
         )
+        log_line(f"OPEN {place_name} {start_date_iso} nights={nights} emailing")
         send_email(email_cfg, subject, body)
-        return
-
-    place_name = (data.get("SelectedPlace") or {}).get("Name") or f"PlaceId {place_id}"
-    available, summary = parse_place(data, place_id)
-
-    status = "OPEN" if available else "CLOSED"
-    subject = f"CampWatch {status} {place_name} {start_date_iso} nights={nights}"
-    body = (
-        f"Time: {t0}\n"
-        f"Date mode: {date_mode_desc}\n"
-        f"Endpoint: {ENDPOINT}\n"
-        f"PlaceId: {place_id}\n"
-        f"StartDate: {start_date_iso}\n"
-        f"Nights: {nights}\n\n"
-        f"{summary}\n"
-    )
-    send_email(email_cfg, subject, body)
+    else:
+        log_line(f"CLOSED {place_name} {start_date_iso} nights={nights}")
 
 if __name__ == "__main__":
     main()
