@@ -3,11 +3,11 @@
 <plist version="1.0">
   <dict>
     <key>Label</key>
-    <string>com.$USER.campwatch</string>
+    <string>com.YOURUSERNAME.campwatch</string>
 
     <key>ProgramArguments</key>
     <array>
-      <string>/Users/$USER/campwatch/run_campwatch.sh</string>
+      <string>/Users/YOURUSERNAME/campwatch/run_campwatch.sh</string>
     </array>
 
     <key>RunAtLoad</key>
