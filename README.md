@@ -10,4 +10,4 @@ A simple laptop "application" to check reservecalifornia.com for campsite availa
 ## Requirements
 - macOS
 - Python 3
-- A configured notification method
+- A gmail account (though easily could be used with other providers)
