@@ -8,6 +8,10 @@ from email.message import EmailMessage
 
 import requests
 
+# Hopefully a relatively stable endpoint, if you're coming across this code
+# and it has been a while... all bets are off. Some docs re: Tyler:
+# https://www.tylertech.com/solutions/public-administration/outdoor-recreation
+
 ENDPOINT = "https://california-rdr.prod.cali.rd12.recreation-management.tylerapp.com/rdr/search/place"
 
 HEADERS = {
