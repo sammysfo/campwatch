@@ -8,6 +8,8 @@ from email.message import EmailMessage
 
 import requests
 
+# Some docs re: Tyler:
+# https://www.tylertech.com/solutions/public-administration/outdoor-recreation
 ENDPOINT = "https://california-rdr.prod.cali.rd12.recreation-management.tylerapp.com/rdr/search/place"
 
 HEADERS = {
