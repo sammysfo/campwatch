@@ -1,16 +1,12 @@
 #!/usr/bin/env python3
 import os
-import socket
+import urllib.request
 import ssl
 import smtplib
 from datetime import date, timedelta, datetime
 from email.message import EmailMessage
 
 import requests
-
-# Hopefully a relatively stable endpoint, if you're coming across this code
-# and it has been a while... all bets are off. Some docs re: Tyler:
-# https://www.tylertech.com/solutions/public-administration/outdoor-recreation
 
 ENDPOINT = "https://california-rdr.prod.cali.rd12.recreation-management.tylerapp.com/rdr/search/place"
 
@@ -29,11 +25,11 @@ def log_line(msg: str) -> None:
     with open(LOG_PATH, "a") as f:
         f.write(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} {msg}\n")
 
-def have_internet(timeout_sec: float = 3.0) -> bool:
+def have_internet(timeout_sec: float = 5.0) -> bool:
     try:
-        socket.create_connection(("1.1.1.1", 443), timeout=timeout_sec).close()
-        return True
-    except OSError:
+        with urllib.request.urlopen("https://www.google.com/generate_204", timeout=timeout_sec) as r:
+            return r.status == 204
+    except Exception:
         return False
 
 def build_payload(place_id: int, start_date: str, nights: int) -> dict:
